@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <time.h>
 #include <sys/wait.h>
 
 int main() {
-    int pipe_io[2];  // pipefd[0] = leitura, pipefd[1] = escrita
-    pid_t pid; // guarda o identificador (PID) so processo
+    int pipe_io[2];  // pipe_io[0] = leitura, pipe_io[1] = escrita
+    pid_t pid;
 
     // Cria o pipe
     if (pipe(pipe_io) == -1) {
@@ -27,19 +26,19 @@ int main() {
     if (pid == 0) {
         close(pipe_io[1]); // Fecha a extremidade de escrita
 
-        char buffer[100];
+        char buffer[256];
         ssize_t bytes_lidos;
 
         printf("Consumidor (filho) iniciado, aguardando mensagens...\n");
 
-        // Lê continuamente até o pipe ser fechado pelo produtor
+        // Lê continuamente até o pipe ser fechado
         while ((bytes_lidos = read(pipe_io[0], buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytes_lidos] = '\0'; // Garante fim de string
-            printf("Hora recebida: %s\n", buffer);
+            printf("Mensagem recebida: %s\n", buffer);
             fflush(stdout);
         }
 
-        close(pipe_io[0]); // Fecha a extremidade de leitura
+        close(pipe_io[0]);
         printf("Consumidor encerrado.\n");
         exit(EXIT_SUCCESS);
     }
@@ -48,25 +47,32 @@ int main() {
     else {
         close(pipe_io[0]); // Fecha a extremidade de leitura
 
-        for (int i = 0; i < 5; i++) { // envia 5 horários
-            time_t t = time(NULL);
-            struct tm *tm_info = localtime(&t);
-            char hora[100];
+        char mensagem[256];
 
-            strftime(hora, sizeof(hora), "%H:%M:%S", tm_info);
+        printf("Produtor (pai) iniciado. Digite mensagens (ou 'sair' para encerrar):\n");
 
-            // Escreve no pipe
-            write(pipe_io[1], hora, strlen(hora));
-
-            printf("Produtor (pai) enviou: %s\n", hora);
+        while (1) {
+            printf("> ");
             fflush(stdout);
 
-            sleep(5); // Espera 5 segundos antes de enviar o próximo horário
+            if (fgets(mensagem, sizeof(mensagem), stdin) == NULL) {
+                break; // EOF (Ctrl+D)
+            }
+
+            // Remove o '\n' do final
+            mensagem[strcspn(mensagem, "\n")] = '\0';
+
+            // Se o usuário digitar "sair", encerra
+            if (strcmp(mensagem, "sair") == 0) {
+                break;
+            }
+
+            // Envia a mensagem pelo pipe
+            write(pipe_io[1], mensagem, strlen(mensagem));
         }
 
-        close(pipe_io[1]); // Fecha a extremidade de escrita
-        wait(NULL);       // Espera o processo filho terminar
-
+        close(pipe_io[1]); // Fecha a escrita → filho detecta EOF
+        wait(NULL);        // Espera o filho terminar
         printf("Produtor (pai) encerrado.\n");
     }
 
