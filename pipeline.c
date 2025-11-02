@@ -5,16 +5,16 @@
 #include <sys/wait.h>
 #include <time.h>
 
-void log_event(const char *filename, const char *event) {
-    FILE *file = fopen(filename, "a"); // abre em modo append
+void registrar_evento(const char *filename, const char *event) {
+    FILE *file = fopen(filename, "a"); // adiciona no final do arquivo sem afetar o anterior (modo append)
     if (!file) {
         perror("Erro ao abrir arquivo de log");
         return;
     }
 
     // Adiciona timestamp
-    time_t now = time(NULL);
-    char *time_str = ctime(&now);
+    time_t agora = time(NULL);
+    char *time_str = ctime(&agora);
     time_str[strlen(time_str) - 1] = '\0'; // remove '\n'
 
     fprintf(file, "[%s] %s\n", time_str, event);
@@ -22,12 +22,12 @@ void log_event(const char *filename, const char *event) {
 }
 
 int main() {
-    int pipe_io[2];  // pipe_io[0] = leitura, pipe_io[1] = escrita
+    int pipeline[2];  // pipeline[0] = leitura, pipeline[1] = escrita
     pid_t pid;
-    const char *logfile = "programa_log.txt";
+    const char *registro = "programa_log.txt";
 
     // Cria o pipe
-    if (pipe(pipe_io) == -1) {
+    if (pipe(pipeline) == -1) {
         perror("Erro ao criar o pipe");
         exit(EXIT_FAILURE);
     }
@@ -40,46 +40,46 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Processo filho → CONSUMIDOR
+    // Processo filho é CONSUMIDOR, então ele não escreve
     if (pid == 0) {
-        close(pipe_io[1]); // Fecha a extremidade de escrita
+        close(pipeline[1]); // Fecha a extremidade de escrita
 
         char buffer[256];
         ssize_t bytes_lidos;
 
         printf("Consumidor (filho) iniciado, aguardando mensagens...\n");
-        log_event(logfile, "Consumidor iniciado.");
+        registrar_evento(registro, "Consumidor iniciado.");
 
-        // Lê continuamente até o pipe ser fechado
+        // Lê continuamente até fechar o pipe
         int n_mensagem = 1;
-        while ((bytes_lidos = read(pipe_io[0], buffer, sizeof(buffer) - 1)) > 0) {
+        while ((bytes_lidos = read(pipeline[0], buffer, sizeof(buffer) - 1)) > 0) {
             buffer[bytes_lidos] = '\0'; // Garante fim de string
             printf("{Mensagem %d} Mensagem recebida: %s\n", n_mensagem, buffer);
 
             char logmsg[300];
             snprintf(logmsg, sizeof(logmsg), "{Mensagem %d} Mensagem recebida: %s", n_mensagem, buffer);
-            log_event(logfile, logmsg);
+            registrar_evento(registro, logmsg);
             n_mensagem ++;
         }
 
-        close(pipe_io[0]);
+        close(pipeline[0]);
         printf("Consumidor encerrado.\n");
-        log_event(logfile, "Consumidor encerrado.");
+        registrar_evento(registro, "Consumidor encerrado.");
         exit(EXIT_SUCCESS);
     }
 
-    // Processo pai → PRODUTOR
+    // Processo pai é PRODUTOR, então ele não lê
     else {
-        close(pipe_io[0]); // Fecha a extremidade de leitura
+        close(pipeline[0]); // Fecha a extremidade de leitura
 
         char mensagem[256];
 
         printf("Produtor (pai) iniciado. Digite mensagens (ou 'sair' para encerrar):\n");
-        log_event(logfile, "Produtor iniciado.");
+        registrar_evento(registro, "Produtor iniciado.");
 
         while (1) {
             printf("> ");
-            fflush(stdout);
+            fflush(stdout); // esvazia o buffer pra garantir que o que esteja lá seja mostrado
 
             if (fgets(mensagem, sizeof(mensagem), stdin) == NULL) {
                 break; // EOF (Ctrl+D)
@@ -94,19 +94,19 @@ int main() {
             }
 
             // Envia a mensagem pelo pipe
-            write(pipe_io[1], mensagem, strlen(mensagem));
+            write(pipeline[1], mensagem, strlen(mensagem));
 
             // Log da mensagem enviada
             char logmsg[300];
             snprintf(logmsg, sizeof(logmsg), "Mensagem enviada: %s", mensagem);
-            log_event(logfile, logmsg);
+            registrar_evento(registro, logmsg);
         }
 
-        close(pipe_io[1]); // Fecha a escrita → filho detecta EOF
+        close(pipeline[1]); // Fecha a escrita → filho detecta EOF
         wait(NULL);        // Espera o filho terminar
 
         printf("Produtor (pai) encerrado.\n");
-        log_event(logfile, "Produtor encerrado.");
+        registrar_evento(registro, "Produtor encerrado.");
     }
 
     return 0;
