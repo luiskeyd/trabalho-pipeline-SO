@@ -102,7 +102,7 @@ int main() {
             registrar_evento(registro, logmsg);
         }
 
-        close(pipeline[1]); // Fecha a escrita → filho detecta EOF
+        close(pipeline[1]); // Fecha a escrita -> filho detecta EOF
         wait(NULL);        // Espera o filho terminar
 
         printf("Produtor (pai) encerrado.\n");
