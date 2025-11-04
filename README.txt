@@ -1,8 +1,3 @@
-Autores:
-- Edmar Miqueias Carvalho Vieira
-- Glezier Montalvane de Farias Ferreira
-- Luis Eduardo do Rosario Fonseca
-
 Pipeline Simples – Explicação detalhada
 
 Começamos incluindo as bibliotecas necessárias, cada uma fornecendo funções específicas:
@@ -70,4 +65,3 @@ Detalhes importantes
 - fflush(stdout) -> garante que o prompt (>) apareça na tela imediatamente, mesmo com bufferização do stdout.
 - Buffer do pipe -> permite que o pai escreva mais rápido que o filho lê, sem perder mensagens.
 - const char *logfile -> protege a string literal de alterações e indica que o nome do arquivo não vai mudar.
-- Há a funcionalidade de um arquivo txt qual registra todas as interações realizadas na execução do programa.
